@@ -4,12 +4,15 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup as soup 
 import csv
+import configparser
 
 #https://github.com/mattdodge/nyt-crossword-stats/blob/master/fetch_puzzle_stats.py
 #https://github.com/kyledeanreinford/NYT_Mini_Leaderboard_Scraper
 
 
-api_key = "1w7x7yDN.jAtJJ6VVZ7ntsAZhjkPT1tqIWft4.2Xhgu3oQluFHQCpzkUGMBi300Qz4jOoea6bgYnRxckKfk3fLpyt0Mds/F//8GbFBc8GNpD9Lb7QDEPbFqPxDTQO38FS1^^^^CBQSLwji2feiBhDo2fOkBhoSMS00ZOHO99EXI8EtNC25BYbRIKjf2iYqAgACOLmC18oFGkBL5M7SQxTLV7qqobyRWxyCm59CFDwjaWu8IUW7vLEjcxP3lDrg1lRDWMMQunm2ztS47dmtewNn1ce390C04VgB"  # Replace with your actual API key
+config = configparser.ConfigParser()
+config.read('config.ini')
+api_token = config.get('API Configuration', 'API_TOKEN')
 API_ROOT = 'https://nyt-games-prd.appspot.com/svc/crosswords'
 PUZZLE_INFO = API_ROOT + '/v2/puzzle/mini-{date}.json'
 SOLVE_INFO = API_ROOT + '/v2/game/{game_id}.json'
