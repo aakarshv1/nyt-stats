@@ -1,10 +1,6 @@
 import requests
 import json
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-from bs4 import BeautifulSoup as soup 
-import csv
-import configparser
 import asyncio
 import aiohttp
 import sys
