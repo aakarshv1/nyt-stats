@@ -20,12 +20,12 @@ def submit_form():
         try:
             # Call the getStats.py script with the username and password as arguments
             cmd = ['python', 'getStats.py', username, password]
-            output = subprocess.check_output(cmd, universal_newlines=True)
-
+            output = subprocess.check_output('/home/ubuntu/nyt-stats/nyt-stats/nytenv/bin/python -c "{}"'.format(cmd), shell=True, universal_newlines=True)
             app.logger.setLevel(logging.DEBUG)
             app.logger.addHandler(logging.StreamHandler())
             
             app.logger.debug(request.form)
+            app.logger.debug(output)
 
             data = ast.literal_eval(output)
             app.logger.info(f'Output: {type(data)}, elem: {type(data[0])}')
