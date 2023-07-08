@@ -12,11 +12,6 @@ import sys
 #https://github.com/mattdodge/nyt-crossword-stats/blob/master/fetch_puzzle_stats.py
 #https://github.com/kyledeanreinford/NYT_Mini_Leaderboard_Scraper
 
-if len(sys.argv) < 3:
-    raise ValueError("Please input both a username and password")
-
-user = sys.argv[1]
-password = sys.argv[2]
 
 def login(username, password):
     """ Return the NYT-S cookie after logging in """
@@ -37,8 +32,6 @@ def login(username, password):
             return cookie['cipheredValue']
     raise ValueError('NYT-S cookie not found')
 
-config = configparser.ConfigParser()
-config.read('config.ini')
 #api_key = login(user, password)
 API_ROOT = 'https://nyt-games-prd.appspot.com/svc/crosswords'
 PUZZLE_INFO = API_ROOT + '/v3/undefined/puzzles.json?publish_type=mini&date_start={start}&date_end={end}'
@@ -60,19 +53,12 @@ def get_quarter_pairs():
 
     return quarter_pairs
 
-def getMiniStat(id):
-    puzzle_resp = requests.get(
-        SOLVE_INFO.format(game_id=id),
-        cookies={
-            'NYT-S': login(user, password),
-        },
-    )
-    return puzzle_resp.json()
 
-async def asyncGMS(session, id):
+
+async def asyncGMS(session, key, id):
     MINI_STAT_ENDPOINT = SOLVE_INFO.format(game_id=id)
     headers = {
-        "Cookie": f"NYT-S={login(user, password)}"
+        "Cookie": f"NYT-S={key}"
     }
     async with session.get(MINI_STAT_ENDPOINT, headers=headers) as response:
         data = await response.json()
@@ -80,9 +66,9 @@ async def asyncGMS(session, id):
 
 
 
-async def getMiniInfo(session, user, password, start_date: str, end_date: str):
+async def getMiniInfo(session, key, start_date: str, end_date: str):
     headers = {
-        "Cookie": f"NYT-S={login(user, password)}"
+        "Cookie": f"NYT-S={key}"
     }
     async with session.get(
             PUZZLE_INFO.format(start=start_date, end=end_date),
@@ -90,13 +76,13 @@ async def getMiniInfo(session, user, password, start_date: str, end_date: str):
         ) as response:
         return json.loads(await response.text())
 
-async def getIds(user, password, incSat=True):
+async def getIds(key, incSat=True):
     dates = get_quarter_pairs()
     ids = []
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
         tasks = []
         for pair in dates:
-            task = asyncio.create_task(getMiniInfo(session, user, password, pair[0], pair[1]))
+            task = asyncio.create_task(getMiniInfo(session, key, pair[0], pair[1]))
             tasks.append(task)
         
         responses = await asyncio.gather(*tasks)
@@ -110,24 +96,22 @@ async def getIds(user, password, incSat=True):
 
 
 
-async def asyncGST(user, password):
-    ids = await getIds()
+async def asyncGST(key):
+    ids = await getIds(key)
     times = []
 
 
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-        tasks = [asyncGMS(session, puzzle_id) for puzzle_id in ids]
+        tasks = [asyncGMS(session, key, puzzle_id) for puzzle_id in ids]
         times = await asyncio.gather(*tasks)
 
     return times
 
-def getSolveTimes(user, password):
-    times = asyncio.run(asyncGST(user, password))
+def getSolveTimes(user=None, password=None, key=None):
+    if not key:
+        key = login(user, password)
+    times = asyncio.run(asyncGST(key))
     return times
                                                                         
 
 
-# Main execution
-if __name__ == "__main__":
-    getSolveTimes()
-    

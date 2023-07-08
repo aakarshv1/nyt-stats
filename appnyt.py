@@ -3,6 +3,8 @@ import subprocess
 import logging
 import numpy as np
 import ast
+from getStats import getSolveTimes
+import requests
 
 app = Flask(__name__)
 
@@ -16,18 +18,22 @@ def submit_form():
     # Extract the username and password from the form submission
         username = request.form['email']
         password = request.form['password']
+        cookie = request.form['cookie']  # Retrieve the NYT-S cookie from the form
+
+        
 
         try:
-            # Call the getStats.py script with the username and password as arguments
-            cmd = ['python', 'getStats.py', username, password]
-            output = subprocess.check_output('/home/ubuntu/nyt-stats/nyt-stats/nytenv/bin/python -c "{}"'.format(cmd), shell=True, universal_newlines=True)
+            if cookie:  # If the NYT-S cookie is provided, use it instead of username and password
+                output = getSolveTimes(key=cookie)
+            else:  # If the NYT-S cookie is not provided, use the username and password
+                output = getSolveTimes(username, password)
             app.logger.setLevel(logging.DEBUG)
             app.logger.addHandler(logging.StreamHandler())
             
             app.logger.debug(request.form)
             app.logger.debug(output)
 
-            data = ast.literal_eval(output)
+            data = output #ast.literal_eval(output)
             app.logger.info(f'Output: {type(data)}, elem: {type(data[0])}')
 
             mean = np.mean(data).round(2)
@@ -52,9 +58,10 @@ def submit_form():
             # Render a new template with the data and statistics
             return render_template('miniresults.html', data=data , bins=bins, counts=counts, mean=mean, median=median, min=minVal, max=maxVal, freqs=freqs)
 
-        except subprocess.CalledProcessError:
+        except requests.exceptions.HTTPError as r:
             # Handle incorrect login information
-            error_message = "Incorrect login information. Please try again."
+            error_message = f"Invalid credentials, please ensure your username and password are correct. Alternatively, you may have exceeded the number of allowed logins. If so, \
+            please login with your NYT-S cookie instead."
             return render_template('nytlogin.html', error_message=error_message)
 
     return redirect('/')
