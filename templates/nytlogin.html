@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<!--
+
+	Template:
+	Hyperspace by HTML5 UP
+	html5up.net | @ajlkn
+-->
+<html>
+	<head>
+		<title>NYT Games Stats - Login</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}" />
+		<noscript><link rel="stylesheet" href="{{ url_for('static', filename='assets/css/noscript.css') }}" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Header -->
+		<header id="header">
+			<a href="{{ url_for('index') }}" class="title">NYT Games Stats</a>
+			<nav>
+				<ul>
+					<li><a href="{{ url_for('index') }}" class="active">More</a></li>
+				</ul>
+			</nav>
+		</header>
+
+		<!-- Wrapper -->
+		<div id="wrapper">
+
+			<!-- Main -->
+			<section id="main" class="wrapper">
+				<div class="inner">
+					<h1 class="major">Login</h1>
+
+					<!-- Form -->
+					
+
+					<section>
+                        <h3>Input your New York Times login info and choose the game whose stats you want to see!</h3>
+                            
+						
+						<form method="post" action="{{ url_for('submit_form') }}" id="nytLoginForm">
+							<div class="row gtr-uniform">
+								<div class="col-12">
+									<input type="email" name="email" id="email" value="" placeholder="Email" />
+								</div>
+								<div class="col-12">
+									<input type="password" name="password" id="password" value="" placeholder="Password" />
+								</div>
+								{% if error_message %}
+									<p class="error-message">{{ error_message }}</p>
+								{% endif %}
+								<div class="col-12">
+									<ul class="actions">
+										<li><input type="submit" value="Mini Crossword" class="primary" /></li>
+									</ul>
+								</div>
+							</div>
+						</form>
+
+						
+					</section>
+				</div>
+			</section>
+		</div>
+
+		<!-- Footer -->
+		<footer id="footer" class="wrapper alt">
+            <div class="inner">
+                <ul class="menu">
+                    <li>&copy; Aakarsh Vermani 2023. All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+                </ul>
+            </div>
+        </footer>
+		<!-- Scripts -->
+		<!-- Scripts -->
+			<!-- Scripts -->
+			<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/jquery.scrollex.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/jquery.scrolly.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+
+	</body>
+</html>

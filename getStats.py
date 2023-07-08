@@ -5,119 +5,152 @@ import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup as soup 
 import csv
 import configparser
+import asyncio
+import aiohttp
+import sys
 
 #https://github.com/mattdodge/nyt-crossword-stats/blob/master/fetch_puzzle_stats.py
 #https://github.com/kyledeanreinford/NYT_Mini_Leaderboard_Scraper
 
+if len(sys.argv) < 3:
+    raise ValueError("Please input both a username and password")
+
+user = sys.argv[1]
+password = sys.argv[2]
+
+
+# print(user)
+# print(password)
+
+def login(username, password):
+    """ Return the NYT-S cookie after logging in """
+    login_resp = requests.post(
+        'https://myaccount.nytimes.com/svc/ios/v2/login',
+        data={
+            'login': username,
+            'password': password,
+        },
+        headers={
+            'User-Agent': 'Crosswords/20191213190708 CFNetwork/1128.0.1 Darwin/19.6.0',
+            'client_id': 'ios.crosswords',
+        },
+    )
+    login_resp.raise_for_status()
+    for cookie in login_resp.json()['data']['cookies']:
+        if cookie['name'] == 'NYT-S':
+            return cookie['cipheredValue']
+    raise ValueError('NYT-S cookie not found')
 
 config = configparser.ConfigParser()
 config.read('config.ini')
-api_token = config.get('API Configuration', 'API_TOKEN')
+api_key = login(user, password)
 API_ROOT = 'https://nyt-games-prd.appspot.com/svc/crosswords'
-PUZZLE_INFO = API_ROOT + '/v2/puzzle/mini-{date}.json'
-SOLVE_INFO = API_ROOT + '/v2/game/{game_id}.json'
-players = ['Aak', 'Bobo22', 'yjsi', 'Pankek']
+PUZZLE_INFO = API_ROOT + '/v3/undefined/puzzles.json?publish_type=mini&date_start={start}&date_end={end}'
+SOLVE_INFO = API_ROOT + '/v6/game/{game_id}.json'
+#players = ['Aak', 'Bobo22', 'yjsi', 'Pankek']
 
+def get_quarter_pairs():
+    today = datetime.now()
+    start_date = today - timedelta(days=365 * 4)  # Set the start date 4 years back
 
-# def get_mini_crossword_stats():
-#     url = f"https://nyt-games-prd.appspot.com/svc/crosswords/v2/puzzle/mini-2023-06-27.json"
-#     response = requests.get(url, 
-#         cookies={
-#             'NYT-S': api_key,
-#         }
-#     )
-#     print(response)
-#     data = json.loads(response.text)
-#     puzzle_info = response.json().get('results')[0]
+    quarter_pairs = []
+    current_start_date = start_date
+    while current_start_date < today:
+        end_date = current_start_date + timedelta(days=89)  # Set the end date as 89 days (approximately 3 months) after the start date
+        quarter_pairs.append([current_start_date.date().isoformat(), end_date.date().isoformat()])
 
-#     solve_resp = requests.get(
-#         SOLVE_INFO.format(game_id=puzzle_info['puzzle_id']),
-#         cookies={
-#             'NYT-S': api_key,
-#         },
-#     )
+        current_start_date += timedelta(days=90)  # Move to the next quarter start date
 
+    quarter_pairs[-1][1] = (today + timedelta(days=1)).date().isoformat()
 
-#    return json.loads(solve_resp.text)
+    return quarter_pairs
 
-def getMiniStat(date: str):
+def getMiniStat(id):
     puzzle_resp = requests.get(
-        PUZZLE_INFO.format(date=date),
+        SOLVE_INFO.format(game_id=id),
         cookies={
             'NYT-S': api_key,
         },
     )
-    puzzle_info = puzzle_resp.json().get('results')[0]
-    solve_resp = requests.get(
-        SOLVE_INFO.format(game_id=puzzle_info['puzzle_id']),
-        cookies={
-            'NYT-S': api_key,
-        },
-    )
-    res = json.loads(solve_resp.text)['results']
-    print(res)
-    if res['solved']:
-        return res['timeElapsed']
-    return
+    return puzzle_resp.json()
 
-def getStats(start:str, end=str(datetime.now().isoformat()), incSat=False):
+async def asyncGMS(session, id):
+    MINI_STAT_ENDPOINT = SOLVE_INFO.format(game_id=id)
+    headers = {
+        "Cookie": f"NYT-S={api_key}"
+    }
+    async with session.get(MINI_STAT_ENDPOINT, headers=headers) as response:
+        data = await response.json()
+        return data['calcs']['secondsSpentSolving']
+
+
+
+async def getMiniInfo(session, start_date: str, end_date: str):
+    headers = {
+        "Cookie": f"NYT-S={api_key}"
+    }
+    async with session.get(
+            PUZZLE_INFO.format(start=start_date, end=end_date),
+            headers=headers
+        ) as response:
+        return json.loads(await response.text())
+
+async def getIds(incSat=True):
+    dates = get_quarter_pairs()
+    ids = []
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+        tasks = []
+        for pair in dates:
+            task = asyncio.create_task(getMiniInfo(session, pair[0], pair[1]))
+            tasks.append(task)
+        
+        responses = await asyncio.gather(*tasks)
+        
+        for resp in responses:
+            for dict in resp['results']:
+                if dict['solved']:
+                    ids.append(dict['puzzle_id'])
+        
+    return ids
+
+
+
+async def asyncGST():
+    ids = await getIds()
     times = []
-    dates = []
-    current_date = datetime.fromisoformat(start)
-    end_date = datetime.fromisoformat(end)
+    # for id in ids:
+    #     time = getMiniStat(id)['calcs']['secondsSpentSolving']
+    #     print(time)
+    #     times.append(time)
 
-    while current_date <= end_date:
-        date_string = current_date.date().isoformat()
-        time = getMiniStat(date_string)
-        if time and current_date.weekday()!=5:
-            times.append(time)
-            dates.append(current_date.day)
-        current_date += timedelta(days=1)
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+        tasks = [asyncGMS(session, puzzle_id) for puzzle_id in ids]
+        times = await asyncio.gather(*tasks)
 
-    plt.scatter(x=dates, y=times)
-    plt.title(f"Mini Crossword Stats for June (no Saturday)")
-    plt.xlabel("Date")
-    plt.ylabel("Solve Time")
+    return times
+
+def getSolveTimes():
+    times = asyncio.run(asyncGST())
+    print(times)
+
+    plt.hist(times, bins=200)
+    plt.title(f"Mini Crossword Stats (Last 4 Years)")
+    plt.xlabel("Solve Time")
+    plt.ylabel("Counts")
     plt.savefig("results.png")
-
-def get_mini_times(cookie,output):
-    url = "https://www.nytimes.com/puzzles/leaderboards"
-    response = requests.get(url, cookies={
-        'NYT-S': cookie,
-    },
-    )
-    print(response.text)
-    page = soup(response.content, features='html.parser')
-    solvers = page.find_all('div', class_='lbd-score')
-    current_datetime = datetime.fromisoformat("2023-06-27")
-    #while current_datetime <= datetime.now():
-    month = str(current_datetime.strftime("%m"))
-    day = str(current_datetime.strftime("%d"))
-    year = str(current_datetime.strftime("%Y"))
-    daytimes=[]
-    print('--------------------------')
-    print("Mini Times for " + month + '-' + day + '-' + year)
-    for solver in solvers:
-        name = solver.find('p', class_='lbd-score__name').text.strip()
-        try:
-            time = solver.find('p', class_='lbd-score__time').text.strip()
-        except:
-            time="--"
-        if name.endswith("(you)"):
-            name_split = name.split()
-            name = name_split[0]
-        if name in players:
-            daytimes.append([month,day,year,name,time])
-    #current_datetime += timedelta(days=1)
-    with open(output, 'w') as csvfile:  
-        csvwriter = csv.writer(csvfile)              
-        csvwriter.writerows(daytimes) 
+                                                                        
 
 
 # Main execution
 if __name__ == "__main__":
     #stats = get_mini_crossword_stats()
-    #getStats("2023-06-01")
-    get_mini_times(api_key, "test.csv")
+    #getStats("2021-06-01")
+    #get_mini_times(api_key, "test.csv")
+    #print(login("aakarshvermani@gmail.com", "Chemistry12@"))
+    #test()
+    #print(get_quarter_pairs())
+    getSolveTimes()
+    #print(config.get('NYT Password', 'PASSWORD'))
+    
 
 #https:\u002F\u002Fmyaccount.nytimes.com\u002Fauth\u002Fenter-email?redirect_uri=https%3A%2F%2Fwww.nytimes.com%2Fpuzzles%2Fleaderboards&response_type=cookie&client_id=games&application=crosswords&asset=leaderboard","register":"https:\u002F\u002Fmyaccount.nytimes.com\u002Fauth\u002Fregister?redirect_uri=https%3A%2F%2Fwww.nytimes.com%2Fpuzzles%2Fleaderboards&response_type=cookie&client_id=games&application=crosswords&asset=leaderboard","printDate":"2023-06-29","puzzleLink":"\u002Fcrosswords\u002Fgame\u002Fmini\u002F2023\u002F06\u002F29

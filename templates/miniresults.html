@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--
+    Template:
+
+	Hyperspace by HTML5 UP
+	html5up.net | @ajlkn
+-->
+<html>
+	<head>
+		<title>Mini Crossword Stats</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}" />
+		<noscript><link rel="stylesheet" href="{{ url_for('static', filename='assets/css/noscript.css') }}" /></noscript>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	</head>
+	<body class="is-preload">
+
+		
+
+		<!-- Header -->
+			<header id="header">
+				<a href="{{ url_for('index') }}" class="title">Mini Crossword Stats</a>
+				<nav>
+					<ul>
+						<li><a href="{{ url_for('index') }}">NYT Games Stats Login</a>
+					</ul>
+				</nav>
+			</header>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<section id="main" class="wrapper">
+						<div class="inner">
+							<h1 class="major">Your Statistics</h1>
+
+							<!-- Display the interactive histogram -->
+							<canvas id="histogram"></canvas>
+
+							<script>
+								// Retrieve the values from Flask passed as a variable
+								var values = {{ data | tojson }};
+								var bins = {{ bins | tojson }};
+								var counts = {{ counts | tojson }};
+
+								// Create a histogram chart using Chart.js
+								var ctx = document.getElementById('histogram').getContext('2d');
+								new Chart(ctx, {
+									type: 'bar',
+									data: {
+										labels: bins.slice(0, -1).map(function (bin, index) {
+                							return bin + ' - ' + bins[index + 1];
+            								}),
+										datasets: [{
+											label: false,
+											data: counts,
+											backgroundColor: 'rgba(75, 192, 192, 0.2)',
+											borderColor: 'rgba(75, 192, 192, 1)',
+											borderWidth: 1
+										}]
+									},
+									options: {
+										plugins: {
+												legend: {
+													display: false
+												},
+											},
+										responsive: true,
+										scales: {
+											y: {
+												title: {
+													display: true,
+													text: 'Number of Puzzles'
+      												},
+												beginAtZero: true
+											},
+											x: {
+												title: {
+													display: true,
+													text: 'Solve Time (seconds)'
+												}
+											}
+
+										}
+									}
+								});
+							</script>
+							<br>
+
+							<!-- Display the basic statistics -->
+								<h2>Solve Time</h3>
+								<ul>
+									<li><b>Mean:</b> {{ mean }} seconds</li>
+									<li><b>Median:</b> {{ median }} seconds</li>
+									<li><b>Fastest:</b> {{ min }} seconds</li>
+									<li><b>Slowest:</b> {{ max }} seconds</li>
+								</ul>
+							
+
+						</div>
+					</section>
+			</div>
+
+				<!-- Footer -->
+					<footer id="footer" class="wrapper style1-alt">
+						<div class="inner">
+							<ul class="menu">
+								<li>&copy; Aakarsh Vermani 2023. All rights reserved.<li>Design: HTML5 UP
+							</ul>
+						</div>
+					</footer>
+
+			
+
+		<!-- Scripts -->
+			<!-- Scripts -->
+			<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/jquery.scrollex.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/jquery.scrolly.min.js') }}"></script>
+			<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+
+
+	</body>
+</html>
